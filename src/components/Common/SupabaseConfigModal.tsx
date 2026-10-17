@@ -348,11 +348,82 @@ CREATE POLICY "Authorized users read student photos" ON storage.objects FOR SELE
     )
 );`;
 
-  const bootstrapSQL = `-- Step 1: Create a user via Supabase Dashboard -> Authentication -> Users (e.g. admin@mahaku.in)
--- Step 2: Run this SQL in SQL Editor with your email to grant Super Admin access:
-UPDATE public.profiles
-SET is_super_admin = true
-WHERE email = 'admin@mahaku.in';`;
+  const bootstrapSQL = `-- ==============================================================================
+-- 1-CLICK SUPER ADMIN ACTIVATION
+-- Email: mukeshchaudhary15796@gmail.com | Password: Mukesh123
+-- Auto-confirms email and grants Super Admin rights immediately
+-- ==============================================================================
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+DO $$
+DECLARE
+  v_user_id UUID;
+  v_email TEXT := 'mukeshchaudhary15796@gmail.com';
+  v_password TEXT := 'Mukesh123';
+  v_encrypted_pw TEXT := crypt(v_password, gen_salt('bf', 10));
+BEGIN
+  -- 1. Check if user already exists in auth.users
+  SELECT id INTO v_user_id FROM auth.users WHERE email = v_email;
+
+  IF v_user_id IS NOT NULL THEN
+    -- Update existing user password and mark email confirmed
+    UPDATE auth.users
+    SET 
+      encrypted_password = v_encrypted_pw,
+      email_confirmed_at = COALESCE(email_confirmed_at, now()),
+      updated_at = now(),
+      raw_app_meta_data = '{"provider":"email","providers":["email"]}',
+      raw_user_meta_data = jsonb_build_object('full_name', 'Super Admin Mukesh', 'is_super_admin', true)
+    WHERE id = v_user_id;
+  ELSE
+    v_user_id := gen_random_uuid();
+    -- Insert new confirmed user
+    INSERT INTO auth.users (
+      id,
+      instance_id,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      raw_app_meta_data,
+      raw_user_meta_data,
+      created_at,
+      updated_at,
+      role,
+      aud,
+      confirmation_token
+    )
+    VALUES (
+      v_user_id,
+      '00000000-0000-0000-0000-000000000000',
+      v_email,
+      v_encrypted_pw,
+      now(),
+      '{"provider":"email","providers":["email"]}',
+      '{"full_name":"Super Admin Mukesh","is_super_admin":true}',
+      now(),
+      now(),
+      'authenticated',
+      'authenticated',
+      ''
+    );
+  END IF;
+
+  -- 2. Upsert profile with is_super_admin = true
+  INSERT INTO public.profiles (id, email, full_name, is_super_admin, created_at, updated_at)
+  VALUES (v_user_id, v_email, 'Super Admin Mukesh', true, now(), now())
+  ON CONFLICT (id) DO UPDATE
+  SET 
+    is_super_admin = true,
+    email = v_email,
+    full_name = 'Super Admin Mukesh',
+    updated_at = now();
+
+  UPDATE public.profiles
+  SET is_super_admin = true
+  WHERE email = v_email;
+
+END $$;`;
 
   const copyToClipboard = (text: string, type: 'migration' | 'bootstrap') => {
     navigator.clipboard.writeText(text);
