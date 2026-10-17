@@ -1,0 +1,6 @@
+{
+  "name": "MAHAKU Student Safety Tracking System",
+  "description": "Multi-school Student Safety Tracking and QR ID Administration System by MAHAKU CORPORATION PVT. LTD.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
